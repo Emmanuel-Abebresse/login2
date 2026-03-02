@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Spatial Data Portal</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #f0f4f8;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    .login-card {
+      background: #ffffff;
+      padding: 40px 36px;
+      border-radius: 12px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.10);
+      width: 100%;
+      max-width: 380px;
+    }
+
+    h1 {
+      font-size: 1.5rem;
+      color: #1a202c;
+      margin-bottom: 6px;
+      text-align: center;
+    }
+
+    .subtitle {
+      font-size: 0.875rem;
+      color: #718096;
+      text-align: center;
+      margin-bottom: 28px;
+    }
+
+    label {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #4a5568;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    input {
+      width: 100%;
+      padding: 11px 14px;
+      border: 1.5px solid #cbd5e0;
+      border-radius: 8px;
+      font-size: 1rem;
+      color: #2d3748;
+      margin-bottom: 20px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    input:focus { border-color: #4f46e5; }
+
+    .error-msg {
+      display: none;
+      font-size: 0.82rem;
+      color: #e53e3e;
+      background: #fff5f5;
+      border: 1px solid #fed7d7;
+      border-radius: 6px;
+      padding: 8px 12px;
+      margin-bottom: 16px;
+      text-align: center;
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      background: #4f46e5;
+      color: #fff;
+      font-size: 1rem;
+      font-weight: 600;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.2s, opacity 0.2s;
+    }
+
+    button:hover    { background: #4338ca; }
+    button:disabled { opacity: 0.6; cursor: not-allowed; }
+  </style>
+</head>
+<body>
+
+  <div class="login-card">
+    <!-- =====================================================
+         EDIT — Change the title and subtitle text here
+         ===================================================== -->
+    <h1>Spatial Data Portal</h1>
+    <p class="subtitle">Enter your reference number and PIN to continue</p>
+
+    <label for="refNumber">Reference Number</label>
+    <input type="text" id="refNumber" placeholder="e.g. REF-123456" autocomplete="off" />
+
+    <label for="pin">PIN</label>
+    <input type="password" id="pin" placeholder="Enter your PIN" maxlength="8" />
+
+    <div class="error-msg" id="errorMsg">Incorrect reference number or PIN. Please try again.</div>
+
+    <button id="loginBtn" onclick="handleLogin()">Enter</button>
+  </div>
+
+  <script>
+    // =====================================================
+    // EDIT — Path to your CSV file.
+    // If credentials.csv is in the same folder as this
+    // HTML file, leave this exactly as is.
+    // =====================================================
+    const CSV_FILE = 'credentials.csv';
+
+    // Fetch and parse the CSV into an array of objects
+    async function loadCredentials() {
+      const response = await fetch(CSV_FILE);
+      const text     = await response.text();
+      const lines    = text.trim().split('\n').slice(1); // skip header row
+
+      return lines
+        .filter(line => line.trim())
+        .map(line => {
+          // Split on first two commas only (so URLs with commas are safe)
+          const first  = line.indexOf(',');
+          const second = line.indexOf(',', first + 1);
+          return {
+            ref         : line.slice(0, first).trim(),
+            pin         : line.slice(first + 1, second).trim(),
+            redirectUrl : line.slice(second + 1).trim(),
+          };
+        });
+    }
+
+    async function handleLogin() {
+      const ref      = document.getElementById('refNumber').value.trim();
+      const pin      = document.getElementById('pin').value.trim();
+      const errorMsg = document.getElementById('errorMsg');
+      const btn      = document.getElementById('loginBtn');
+
+      errorMsg.style.display = 'none';
+
+      if (!ref || !pin) {
+        errorMsg.textContent   = 'Please enter both your reference number and PIN.';
+        errorMsg.style.display = 'block';
+        return;
+      }
+
+      btn.disabled    = true;
+      btn.textContent = 'Verifying...';
+
+      try {
+        const credentials = await loadCredentials();
+
+        // Find a row where both ref AND pin match
+        const match = credentials.find(c => c.ref === ref && c.pin === pin);
+
+        if (match) {
+          window.location.href = match.redirectUrl;
+        } else {
+          errorMsg.textContent   = 'Incorrect reference number or PIN. Please try again.';
+          errorMsg.style.display = 'block';
+        }
+
+      } catch (err) {
+        errorMsg.textContent   = 'Could not load credentials. Check that credentials.csv is in the same folder.';
+        errorMsg.style.display = 'block';
+      }
+
+      btn.disabled    = false;
+      btn.textContent = 'Enter';
+    }
+
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Enter') handleLogin();
+    });
+  </script>
+
+</body>
+</html>
